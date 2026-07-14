@@ -136,6 +136,9 @@ class Settings(BaseSettings):
     environment: Environment = Environment.DEV
     app_name: str = "Spread Monitor MVP"
     app_version: str = "0.1.0"
+    # Вимикає біржові WS-адаптери (тести/CI без мережі); движок і WS
+    # push при цьому працюють на порожньому кеші.
+    live_adapters_enabled: bool = True
 
     exchanges: dict[Exchange, ExchangeConfig] = Field(
         default_factory=lambda: {
