@@ -9,7 +9,8 @@
 - [x] Фаза 0.1 — Безпека (ключі, .env, маскування секретів, політика ротації)
 - [x] Фаза 0.2 — Configuration (Pydantic Settings, валідація при старті)
 - [x] Фаза 0.3 — Структура проєкту (backend/frontend scaffold, Alembic)
-- [ ] Фаза 1 — Live моніторинг (adapters, normalizer, quote cache, spread engine, WS, dashboard)
+- [x] Фаза 1 — Live моніторинг (adapters, normalizer, quote cache, spread engine, WS, dashboard)
+- [ ] Фаза 2 — Збереження історії (PostgreSQL, async queue, batch insert)
 - [ ] Фаза 2+ — див. docs/PLAN.md
 
 ## Наскрізні правила (короткий витяг з PLAN.md)
