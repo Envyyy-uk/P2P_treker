@@ -28,6 +28,23 @@ async def health(request: Request) -> dict[str, Any]:
             "subscribed_symbols": h.subscribed_symbols,
         }
 
+    writer = getattr(state, "db_writer", None)
+    if writer is None:
+        database: dict[str, Any] = {"enabled": False, "status": "disabled_or_unavailable"}
+    else:
+        m = writer.metrics
+        database = {
+            "enabled": True,
+            "status": "ok",
+            "queue_size": m.queue_size,
+            "queue_capacity": settings.database.write_queue_size,
+            "dropped_records_total": m.dropped_total,
+            "written_total": m.written_total,
+            "failed_batches": m.failed_batches,
+            "last_batch_size": m.last_batch_size,
+            "last_write_latency_ms": m.last_write_latency_ms,
+        }
+
     return {
         "status": "ok",
         "app": settings.app_name,
@@ -38,6 +55,7 @@ async def health(request: Request) -> dict[str, Any]:
         "exchanges": exchanges,
         "cached_quotes": state.quote_cache.quote_count(),
         "ws_clients": state.ws_manager.client_count,
+        "database": database,
     }
 
 
