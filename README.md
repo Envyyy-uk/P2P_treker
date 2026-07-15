@@ -4,7 +4,7 @@
 тільки Spot). На поточному етапі це **Spread Monitor**, а не торговий бот.
 
 Повний план розробки: [docs/PLAN.md](docs/PLAN.md).
-Статус фаз: [CLAUDE.md](CLAUDE.md). Виконано: Фази 0, 0.1, 0.2, 0.3.
+Статус фаз: [CLAUDE.md](CLAUDE.md). Виконано: Фази 0, 0.1, 0.2, 0.3, 1, 2.
 
 ## Вимоги
 
@@ -16,14 +16,19 @@
 ## Запуск (backend)
 
 ```bash
+docker compose up -d postgres      # локальна PostgreSQL для історії (Фаза 2)
 cd backend
 cp .env.example .env        # заповнити своїми значеннями
 uv sync
+uv run alembic upgrade head        # застосувати схему БД
 uv run uvicorn app.main:app --workers 1
 ```
 
 ⚠️ **Строго один worker** для MVP: quote cache живе в пам'яті процесу,
 кілька workers матимуть розсинхронізовані копії (див. PLAN.md, Фаза 1, п.4).
+
+Без PostgreSQL: встановіть `DATABASE__ENABLED=false` у `.env` — live-моніторинг
+працюватиме, історія не писатиметься.
 
 Перевірка: `curl localhost:8000/health`
 
@@ -60,6 +65,8 @@ backend/migrations/  Alembic (жодних ручних ALTER TABLE)
   paper trading).
 - Top-of-book (best bid/ask); повний стакан — Фаза 4.
 - Один процес FastAPI; Redis/Kafka — лише при масштабуванні.
+- Історія: один snapshot котирувань за секунду + закриті spread events;
+  сирі тики не зберігаються. Retention/backup — Фази 2.1–2.2.
 
 ## Правила безпеки
 

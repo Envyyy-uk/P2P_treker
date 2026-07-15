@@ -17,6 +17,8 @@ from app.api.websocket.routes import router as ws_router
 from app.core.config import Settings, get_settings
 from app.core.logging import setup_logging
 from app.core.time_sync import ClockDriftResult, check_clock_drift_on_startup
+from app.database.session import build_engine, build_session_factory, check_database
+from app.database.writer import DbWriter
 from app.exchanges.base import ExchangeAdapter
 from app.exchanges.base_ws import BaseWsAdapter
 from app.exchanges.binance.adapter import BinanceAdapter
@@ -25,7 +27,9 @@ from app.exchanges.okx.adapter import OKXAdapter
 from app.models.enums import Exchange
 from app.models.quote import NormalizedQuote
 from app.quote_cache.cache import QuoteCache
+from app.repositories.market_data import MarketDataRepository
 from app.services.broadcaster import Broadcaster
+from app.services.history_recorder import HistoryRecorder
 from app.spread.engine import SpreadEngine
 
 logger = logging.getLogger(__name__)
@@ -56,6 +60,22 @@ def build_adapters(settings: Settings, cache: QuoteCache) -> list[ExchangeAdapte
             )
         )
     return adapters
+
+
+async def build_db_writer(settings: Settings) -> DbWriter | None:
+    """Фаза 2: DB writer з реальним engine. None, якщо БД вимкнена в конфізі
+    або недоступна при старті — збір ринкових даних не блокується відсутністю
+    БД, історія просто тимчасово не пишеться (критична помилка в логах)."""
+    if not settings.database.enabled:
+        logger.info("Database disabled by config; history will not be recorded")
+        return None
+    engine = build_engine(settings.database)
+    if not await check_database(engine):
+        await engine.dispose()
+        return None
+    session_factory = build_session_factory(engine)
+    repository = MarketDataRepository(session_factory)
+    return DbWriter(flush=repository.bulk_insert, config=settings.database)
 
 
 @asynccontextmanager
@@ -91,6 +111,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     broadcaster = Broadcaster(engine, manager, settings.websocket)
     adapters = build_adapters(settings, cache) if settings.live_adapters_enabled else []
 
+    # 4. Компоненти Фази 2: bounded async queue -> batch insert -> PostgreSQL.
+    writer = await build_db_writer(settings)
+    recorder = HistoryRecorder(cache, engine, writer, settings) if writer is not None else None
+
     app.state.settings = settings
     app.state.clock_drift = drift
     app.state.quote_cache = cache
@@ -98,17 +122,22 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.ws_manager = manager
     app.state.broadcaster = broadcaster
     app.state.adapters = adapters
+    app.state.db_writer = writer
+    app.state.history_recorder = recorder
 
     for adapter in adapters:
         await adapter.connect()
     await broadcaster.start()
+    if writer is not None:
+        await writer.start()
+    if recorder is not None:
+        await recorder.start()
 
     try:
         yield
     finally:
-        # Graceful shutdown (Фаза 1, п.2): зупинити push, закрити всі WS.
-        # Флаш черги БД додасться у Фазі 2 сюди ж, з таймаутом
-        # settings.websocket.graceful_shutdown_timeout_s.
+        # Graceful shutdown (Фаза 1, п.2 + Фаза 2 flush): зупинити push,
+        # закрити всі WS, дописати чергу БД з таймаутом.
         await broadcaster.stop()
         results = await asyncio.gather(
             *(adapter.disconnect() for adapter in adapters), return_exceptions=True
@@ -116,6 +145,10 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         for adapter, result in zip(adapters, results, strict=True):
             if isinstance(result, BaseException):
                 logger.warning("Adapter %s shutdown error: %s", adapter.exchange.value, result)
+        if recorder is not None:
+            await recorder.stop()
+        if writer is not None:
+            await writer.stop()
         logger.info("Shutdown complete")
 
 

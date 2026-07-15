@@ -76,12 +76,21 @@ class TradingConfig(BaseModel):
 
 
 class DatabaseConfig(BaseModel):
+    # enabled=False — запуск без PostgreSQL (dev/тести): моніторинг працює,
+    # історія не пишеться. Якщо enabled=True, але БД недоступна при старті,
+    # застосунок продовжує моніторити і логує критичну помилку (збір даних
+    # важливіший за їх персистентність у MVP).
+    enabled: bool = True
     dsn: SecretStr = SecretStr("postgresql+asyncpg://arb:arb@localhost:5432/arbitrage")
     # Async queue запису (Фаза 2): bounded, з явною політикою переповнення.
     write_queue_size: int = Field(default=10_000, ge=100)
     queue_overflow_policy: QueueOverflowPolicy = QueueOverflowPolicy.DROP_OLDEST
     batch_max_rows: int = Field(default=500, ge=1)
     batch_max_interval_ms: int = Field(default=1000, ge=50)
+    # Стратегія збереження (Фаза 2, п.5): один snapshot котирувань за секунду.
+    quotes_sample_interval_ms: int = Field(default=1000, ge=100)
+    # Таймаут флашу черги при graceful shutdown.
+    shutdown_flush_timeout_s: float = Field(default=10.0, gt=0)
 
 
 class WebSocketConfig(BaseModel):

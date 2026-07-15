@@ -1,0 +1,21 @@
+# Мінімальний docker-compose для локальної розробки Фази 2 (тільки PostgreSQL).
+# Повний stack (backend, frontend, Prometheus, Grafana) — Фаза 10.
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: arb
+      POSTGRES_PASSWORD: arb
+      POSTGRES_DB: arbitrage
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U arb -d arbitrage"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  postgres_data:

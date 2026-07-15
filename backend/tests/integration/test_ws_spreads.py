@@ -36,6 +36,7 @@ def put_quotes(cache):
 
 def test_ws_pushes_spread_updates(monkeypatch):
     monkeypatch.setenv("LIVE_ADAPTERS_ENABLED", "false")
+    monkeypatch.setenv("DATABASE__ENABLED", "false")
     from app.core.config import get_settings
 
     get_settings.cache_clear()
@@ -65,6 +66,7 @@ def test_ws_pushes_spread_updates(monkeypatch):
 
 def test_health_exposes_adapters_and_cache(monkeypatch):
     monkeypatch.setenv("LIVE_ADAPTERS_ENABLED", "false")
+    monkeypatch.setenv("DATABASE__ENABLED", "false")
     from app.core.config import get_settings
 
     get_settings.cache_clear()
@@ -75,5 +77,6 @@ def test_health_exposes_adapters_and_cache(monkeypatch):
         assert body["cached_quotes"] == 0
         assert body["ws_clients"] == 0
         assert body["exchanges"] == {}  # адаптери вимкнені в тестах
+        assert body["database"] == {"enabled": False, "status": "disabled_or_unavailable"}
     finally:
         get_settings.cache_clear()
