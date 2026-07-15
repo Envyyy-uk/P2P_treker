@@ -4,7 +4,7 @@
 тільки Spot). На поточному етапі це **Spread Monitor**, а не торговий бот.
 
 Повний план розробки: [docs/PLAN.md](docs/PLAN.md).
-Статус фаз: [CLAUDE.md](CLAUDE.md). Виконано: Фази 0, 0.1, 0.2, 0.3, 1, 2, 2.1.
+Статус фаз: [CLAUDE.md](CLAUDE.md). Виконано: Фази 0, 0.1, 0.2, 0.3, 1, 2, 2.1, 2.2.
 
 ## Вимоги
 
@@ -12,6 +12,7 @@
 - [uv](https://docs.astral.sh/uv/) (або pip)
 - PostgreSQL 15+ (з Фази 2)
 - Node.js 20+ (frontend, з Фази 1)
+- `pg_dump`/`pg_restore`/`createdb`/`dropdb` (пакет `postgresql-client`) — для `ops/` (Фаза 2.2)
 
 ## Запуск (backend)
 
@@ -54,8 +55,9 @@ uv run mypy app                        # типи
 ```text
 backend/    FastAPI застосунок (app/core, app/exchanges, app/spread, ...)
 frontend/   React dashboard (Фаза 1)
-docs/       PLAN.md, фазові документи, безпека
+docs/       PLAN.md, фазові документи, безпека, операційні runbook'и
 backend/migrations/  Alembic (жодних ручних ALTER TABLE)
+ops/        backup.sh / restore.sh / verify_backup.sh (Фаза 2.2)
 ```
 
 ## Обмеження MVP
@@ -66,7 +68,22 @@ backend/migrations/  Alembic (жодних ручних ALTER TABLE)
 - Top-of-book (best bid/ask); повний стакан — Фаза 4.
 - Один процес FastAPI; Redis/Kafka — лише при масштабуванні.
 - Історія: один snapshot котирувань за секунду + закриті spread events;
-  сирі тики не зберігаються. Retention/backup — Фази 2.1–2.2.
+  сирі тики не зберігаються. Retention — Фаза 2.1, backup/restore —
+  [ops/](ops/) і [docs/phase-2.2](docs/phase-2.2/README.md).
+
+## Backup і Disaster Recovery (Фаза 2.2)
+
+```bash
+PGHOST=localhost PGUSER=arb PGPASSWORD=arb PGDATABASE=arbitrage \
+    BACKUP_DIR=/mnt/backups ./ops/backup.sh          # бекап
+
+./ops/verify_backup.sh /mnt/backups/arbitrage_*.dump # тестове відновлення
+
+./ops/restore.sh <dump_file> arbitrage --priority    # DR: spread_events першими
+```
+
+RPO/RTO, розклад cron, повний runbook — [docs/phase-2.2/README.md](docs/phase-2.2/README.md),
+[docs/operations/incident-response.md](docs/operations/incident-response.md).
 
 ## Правила безпеки
 
