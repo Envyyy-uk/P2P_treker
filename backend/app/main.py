@@ -13,6 +13,7 @@ from dataclasses import dataclass
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from app.api.routes.analytics import router as analytics_router
 from app.api.routes.health import router as health_router
 from app.api.websocket.manager import ConnectionManager
 from app.api.websocket.routes import router as ws_router
@@ -30,6 +31,7 @@ from app.exchanges.okx.adapter import OKXAdapter
 from app.models.enums import Exchange
 from app.models.quote import NormalizedQuote
 from app.quote_cache.cache import QuoteCache
+from app.repositories.analytics import AnalyticsRepository
 from app.repositories.market_data import MarketDataRepository
 from app.services.broadcaster import Broadcaster
 from app.services.downsampler import Downsampler
@@ -141,6 +143,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             downsampler=Downsampler(db.session_factory),
         )
 
+    analytics_repo = AnalyticsRepository(db.session_factory) if db is not None else None
+
     app.state.settings = settings
     app.state.clock_drift = drift
     app.state.quote_cache = cache
@@ -151,6 +155,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.db_writer = writer
     app.state.history_recorder = recorder
     app.state.retention_manager = retention
+    app.state.analytics_repo = analytics_repo
 
     for adapter in adapters:
         await adapter.connect()
@@ -190,3 +195,4 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="Spread Monitor MVP", lifespan=lifespan)
 app.include_router(health_router)
 app.include_router(ws_router)
+app.include_router(analytics_router)

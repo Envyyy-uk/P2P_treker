@@ -13,7 +13,7 @@ from decimal import Decimal
 from enum import StrEnum
 from functools import lru_cache
 
-from pydantic import BaseModel, Field, SecretStr, model_validator
+from pydantic import BaseModel, Field, SecretStr, field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.symbols import SYMBOL_MAP
@@ -113,6 +113,29 @@ class RetentionConfig(BaseModel):
     partition_ahead_days: int = Field(default=2, ge=1)
     maintenance_interval_hours: int = Field(default=24, ge=1)
 
+    @field_validator("spread_events_retention_days", mode="before")
+    @classmethod
+    def _empty_string_means_unset(cls, v: object) -> object:
+        # Порожній env var (RETENTION__SPREAD_EVENTS_RETENTION_DAYS=) має
+        # означати "не задано" (постійне зберігання), а не помилку парсингу.
+        if isinstance(v, str) and v.strip() == "":
+            return None
+        return v
+
+
+class AnalyticsConfig(BaseModel):
+    """API історії/статистики (Фаза 3)."""
+
+    # Мінімальна тривалість spread event, щоб не враховувати випадкові
+    # короткі стрибки (план, Фаза 3, п.2). Фільтр на рівні читання/API —
+    # сам детектор (Фаза 2) пише всі перетини порогу без змін заднім числом.
+    default_min_event_duration_ms: int = Field(default=500, ge=0)
+    # Backend не повинен віддавати сотні тисяч точок (план, Фаза 3, п.5):
+    # автовибір інтервалу downsampling + жорсткий cap на кількість точок.
+    max_chart_points: int = Field(default=2000, ge=10)
+    max_page_size: int = Field(default=500, ge=1, le=5000)
+    default_page_size: int = Field(default=100, ge=1)
+
 
 class WebSocketConfig(BaseModel):
     """Параметри і біржових WS, і push на frontend."""
@@ -180,6 +203,7 @@ class Settings(BaseSettings):
     trading: TradingConfig = Field(default_factory=TradingConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     retention: RetentionConfig = Field(default_factory=RetentionConfig)
+    analytics: AnalyticsConfig = Field(default_factory=AnalyticsConfig)
     websocket: WebSocketConfig = Field(default_factory=WebSocketConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)

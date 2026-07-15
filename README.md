@@ -4,7 +4,7 @@
 тільки Spot). На поточному етапі це **Spread Monitor**, а не торговий бот.
 
 Повний план розробки: [docs/PLAN.md](docs/PLAN.md).
-Статус фаз: [CLAUDE.md](CLAUDE.md). Виконано: Фази 0, 0.1, 0.2, 0.3, 1, 2, 2.1, 2.2.
+Статус фаз: [CLAUDE.md](CLAUDE.md). Виконано: Фази 0, 0.1, 0.2, 0.3, 1, 2, 2.1, 2.2, 3.
 
 ## Вимоги
 
@@ -84,6 +84,19 @@ PGHOST=localhost PGUSER=arb PGPASSWORD=arb PGDATABASE=arbitrage \
 
 RPO/RTO, розклад cron, повний runbook — [docs/phase-2.2/README.md](docs/phase-2.2/README.md),
 [docs/operations/incident-response.md](docs/operations/incident-response.md).
+
+## Analytics API (Фаза 3)
+
+```text
+GET /api/analytics/quotes            OHLC-історія котирувань однієї біржі
+GET /api/analytics/spread-history    Gross/Net spread пари бірж у часі
+GET /api/analytics/spread-events     список threshold events (фільтри, пагінація)
+GET /api/analytics/spread-events/stats    статистика (duration, spread, обсяг, прибуток)
+GET /api/analytics/spread-events/export   CSV/JSON експорт
+```
+
+Деталі, обмеження, знайдені під час перевірки нюанси —
+[docs/phase-3/README.md](docs/phase-3/README.md).
 
 ## Правила безпеки
 
