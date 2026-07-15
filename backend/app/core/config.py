@@ -93,6 +93,27 @@ class DatabaseConfig(BaseModel):
     shutdown_flush_timeout_s: float = Field(default=10.0, gt=0)
 
 
+class RetentionConfig(BaseModel):
+    """Retention, партиціонування і downsampling (Фаза 2.1).
+
+    Сирі секундні дані partition-уються по днях (`quotes_1s`); downsample
+    таблиці (`quotes_10s/1m/5m`) агрегуються окремим job'ом. `spread_events`
+    зберігаються довше/постійно — це інша категорія даних (план, Фаза 2.1 п.3).
+    """
+
+    enabled: bool = True
+    # Скільки денних партицій quotes_1s тримати (найновіші дні найважливіші).
+    raw_retention_days: int = Field(default=7, ge=1)
+    downsample_10s_retention_days: int = Field(default=30, ge=1)
+    downsample_1m_retention_days: int = Field(default=180, ge=1)
+    downsample_5m_retention_days: int = Field(default=365, ge=1)
+    # None/0 -> зберігати spread_events постійно (вища критичність, план п.3, 2.2 п.5).
+    spread_events_retention_days: int | None = None
+    # Скільки майбутніх денних партицій quotes_1s тримати заздалегідь створеними.
+    partition_ahead_days: int = Field(default=2, ge=1)
+    maintenance_interval_hours: int = Field(default=24, ge=1)
+
+
 class WebSocketConfig(BaseModel):
     """Параметри і біржових WS, і push на frontend."""
 
@@ -158,6 +179,7 @@ class Settings(BaseSettings):
     )
     trading: TradingConfig = Field(default_factory=TradingConfig)
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
+    retention: RetentionConfig = Field(default_factory=RetentionConfig)
     websocket: WebSocketConfig = Field(default_factory=WebSocketConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
