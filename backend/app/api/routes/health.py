@@ -45,6 +45,11 @@ async def health(request: Request) -> dict[str, Any]:
             "last_write_latency_ms": m.last_write_latency_ms,
         }
 
+    retention_manager = getattr(state, "retention_manager", None)
+    retention: dict[str, Any] = {"enabled": False}
+    if retention_manager is not None:
+        retention = retention_manager.metrics.snapshot()
+
     return {
         "status": "ok",
         "app": settings.app_name,
@@ -56,6 +61,7 @@ async def health(request: Request) -> dict[str, Any]:
         "cached_quotes": state.quote_cache.quote_count(),
         "ws_clients": state.ws_manager.client_count,
         "database": database,
+        "retention": retention,
     }
 
 

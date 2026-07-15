@@ -48,7 +48,8 @@ uv run uvicorn app.main:app --workers 1
 
 ## Що залишилось за межами Фази 2 (навмисно)
 
-- Retention policy, партиціонування за датою, downsampling — Фаза 2.1.
+- Retention policy, партиціонування за датою, downsampling — реалізовано в
+  [Фазі 2.1](../phase-2.1/README.md).
 - Backup/PITR, тестове відновлення — Фаза 2.2.
 - Periodic fee refresh з account/fee endpoint (місце заготовлене:
   `SpreadEngine.update_taker_fee`, `ExchangeConfig.fee_refresh_interval_hours`) —

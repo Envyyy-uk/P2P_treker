@@ -78,5 +78,6 @@ def test_health_exposes_adapters_and_cache(monkeypatch):
         assert body["ws_clients"] == 0
         assert body["exchanges"] == {}  # адаптери вимкнені в тестах
         assert body["database"] == {"enabled": False, "status": "disabled_or_unavailable"}
+        assert body["retention"] == {"enabled": False}
     finally:
         get_settings.cache_clear()
