@@ -12,7 +12,8 @@
 - [x] Фаза 1 — Live моніторинг (adapters, normalizer, quote cache, spread engine, WS, dashboard)
 - [x] Фаза 2 — Збереження історії (PostgreSQL, async queue, batch insert, spread events)
 - [x] Фаза 2.1 — Retention і розмір БД (партиції, downsampling, метрики розміру)
-- [ ] Фаза 2.2+ — див. docs/PLAN.md
+- [x] Фаза 2.2 — Backup і Disaster Recovery (pg_dump, тестове відновлення, RPO/RTO)
+- [ ] Фаза 3+ — див. docs/PLAN.md
 
 ## Наскрізні правила (короткий витяг з PLAN.md)
 
@@ -42,5 +43,6 @@ uv run uvicorn app.main:app --workers 1   # запуск (MVP: строго 1 wo
 
 - `backend/` — FastAPI застосунок (структура за Фазою 0.3 плану)
 - `frontend/` — React dashboard (Фаза 1)
-- `docs/` — план, фазові документи, безпека
+- `docs/` — план, фазові документи, безпека, операційні runbook'и
 - `backend/migrations/` — Alembic (жодних ручних ALTER TABLE)
+- `ops/` — backup/restore/verify скрипти (Фаза 2.2), поза FastAPI-процесом
