@@ -15,7 +15,8 @@
 - [x] Фаза 2.2 — Backup і Disaster Recovery (pg_dump, тестове відновлення, RPO/RTO)
 - [x] Фаза 3 — Аналітика (API історії, threshold events, статистика, графіки, експорт)
 - [x] Фаза 3.1 — Historical Backtesting Engine (replay через live Spread Engine, симульований PnL)
-- [ ] Фаза 4+ — див. docs/PLAN.md
+- [x] Фаза 4 — Paper Trading і симуляція (Order Book, VWAP/slippage, торгові обмеження, Paper Trading Engine, Testnet-клієнт)
+- [ ] Фаза 4.1+ — див. docs/PLAN.md
 
 ## Наскрізні правила (короткий витяг з PLAN.md)
 

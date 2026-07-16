@@ -18,6 +18,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.core.symbols import SYMBOL_MAP
 from app.models.enums import Exchange, MarketType
+from app.paper_trading.rules import SymbolRules
 
 
 class Environment(StrEnum):
@@ -145,6 +146,45 @@ class BacktestConfig(BaseModel):
     max_ticks_per_run: int = Field(default=500_000, ge=1_000)
 
 
+class SymbolRulesConfig(BaseModel):
+    """Дефолтні торгові обмеження (Фаза 4, п.4).
+
+    Реальні значення надаються exchangeInfo-подібним endpoint'ом кожної
+    біржі і мають періодично оновлюватись (той самий механізм, що й
+    `fee_refresh_interval_hours` для комісій, Фаза 0, п.5) — тут лише
+    статичні дефолти; REST-клієнт періодичного оновлення — майбутня робота.
+    """
+
+    tick_size: Decimal = Decimal("0.01")
+    step_size: Decimal = Decimal("0.00001")
+    min_quantity: Decimal = Decimal("0.00001")
+    min_notional: Decimal = Decimal("10")
+
+    def to_rules(self) -> SymbolRules:
+        return SymbolRules(
+            tick_size=self.tick_size,
+            step_size=self.step_size,
+            min_quantity=self.min_quantity,
+            min_notional=self.min_notional,
+        )
+
+
+class PaperTradingConfig(BaseModel):
+    """Paper Trading Engine (Фаза 4, п.5)."""
+
+    default_rules: SymbolRulesConfig = Field(default_factory=SymbolRulesConfig)
+    # Канонічний символ -> перевизначені правила (якщо відрізняються від дефолту).
+    symbol_rules: dict[str, SymbolRulesConfig] = Field(default_factory=dict)
+    # Затримка між двома ордерами арбітражної угоди (купівля/продаж не одночасні).
+    inter_order_delay_ms: int = Field(default=200, ge=0)
+    order_timeout_ms: int = Field(default=5_000, ge=1)
+    # Проста симуляція rate limit біржі: макс. ордерів/скасувань за секунду.
+    rate_limit_orders_per_second: int = Field(default=10, ge=1)
+
+    def rules_for(self, symbol: str) -> SymbolRulesConfig:
+        return self.symbol_rules.get(symbol, self.default_rules)
+
+
 class WebSocketConfig(BaseModel):
     """Параметри і біржових WS, і push на frontend."""
 
@@ -213,6 +253,7 @@ class Settings(BaseSettings):
     retention: RetentionConfig = Field(default_factory=RetentionConfig)
     analytics: AnalyticsConfig = Field(default_factory=AnalyticsConfig)
     backtest: BacktestConfig = Field(default_factory=BacktestConfig)
+    paper_trading: PaperTradingConfig = Field(default_factory=PaperTradingConfig)
     websocket: WebSocketConfig = Field(default_factory=WebSocketConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)

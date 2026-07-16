@@ -4,7 +4,7 @@
 тільки Spot). На поточному етапі це **Spread Monitor**, а не торговий бот.
 
 Повний план розробки: [docs/PLAN.md](docs/PLAN.md).
-Статус фаз: [CLAUDE.md](CLAUDE.md). Виконано: Фази 0, 0.1, 0.2, 0.3, 1, 2, 2.1, 2.2, 3, 3.1.
+Статус фаз: [CLAUDE.md](CLAUDE.md). Виконано: Фази 0, 0.1, 0.2, 0.3, 1, 2, 2.1, 2.2, 3, 3.1, 4.
 
 ## Вимоги
 
@@ -63,9 +63,11 @@ ops/        backup.sh / restore.sh / verify_backup.sh (Фаза 2.2)
 ## Обмеження MVP
 
 - Тільки Spot; Futures не підтримуються і не порівнюються зі Spot.
-- Тільки моніторинг: жодного виконання угод (execution — Фаза 5, після
-  paper trading).
-- Top-of-book (best bid/ask); повний стакан — Фаза 4.
+- Тільки моніторинг + paper trading (in-memory симуляція): жодного
+  реального виконання угод на біржі (execution — Фаза 5).
+- Повний Order Book є (Фаза 4, generic snapshot/delta engine), але без
+  live WS depth-адаптерів для конкретних бірж — рівні стакану передаються
+  в тілі запиту Paper Trading API, а не тягнуться з live-фіда.
 - Один процес FastAPI; Redis/Kafka — лише при масштабуванні.
 - Історія: один snapshot котирувань за секунду + закриті spread events;
   сирі тики не зберігаються. Retention — Фаза 2.1, backup/restore —
@@ -112,6 +114,31 @@ curl -X POST localhost:8000/api/backtest/run -H "Content-Type: application/json"
 заднім числом для експерименту. Результат — оптимістична оцінка (без
 VWAP/slippage/затримки виконання). Деталі —
 [docs/phase-3.1/README.md](docs/phase-3.1/README.md).
+
+## Paper Trading (Фаза 4)
+
+```bash
+curl -X POST localhost:8000/api/paper-trading/execute -H "Content-Type: application/json" -d '{
+  "symbol": "BTC-USDT", "buy_exchange": "binance", "sell_exchange": "bybit",
+  "quantity": "1",
+  "buy_book": {"bids": [], "asks": [{"price": "100", "quantity": "10"}]},
+  "sell_book": {"bids": [{"price": "102", "quantity": "10"}], "asks": []}
+}'
+
+curl localhost:8000/api/paper-trading/balances
+curl -X POST localhost:8000/api/paper-trading/balances -H "Content-Type: application/json" \
+  -d '{"exchange": "binance", "asset": "USDT", "total": "5000"}'
+```
+
+Повністю in-memory симуляція двоногого арбітражу: реальний Order Book
+(snapshot/delta, sequence gap detection), VWAP-заповнення, slippage,
+торгові обмеження (min qty/notional, tick/step), баланс (available/
+locked), rate limit, часткові виконання, timeout, cancellation. Не
+залежить від БД. Плюс окремий `BinanceTestnetClient`
+(`app/testnet/binance.py`) з retry policy (backoff тільки на 5xx/мережеві
+помилки, ніколи на 4xx) і ідемпотентністю за `client_order_id`. Деталі,
+що свідомо не реалізовано (live WS depth-адаптери) і чому —
+[docs/phase-4/README.md](docs/phase-4/README.md).
 
 ## Правила безпеки
 
