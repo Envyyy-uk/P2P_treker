@@ -9,6 +9,7 @@ import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass
+from decimal import Decimal
 
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
@@ -16,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from app.api.routes.analytics import router as analytics_router
 from app.api.routes.backtest import router as backtest_router
 from app.api.routes.health import router as health_router
+from app.api.routes.paper_trading import router as paper_trading_router
 from app.api.websocket.manager import ConnectionManager
 from app.api.websocket.routes import router as ws_router
 from app.backtesting.engine import BacktestEngine
@@ -32,6 +34,8 @@ from app.exchanges.bybit.adapter import BybitAdapter
 from app.exchanges.okx.adapter import OKXAdapter
 from app.models.enums import Exchange
 from app.models.quote import NormalizedQuote
+from app.paper_trading.balance import BalanceManager
+from app.paper_trading.engine import PaperTradingEngine
 from app.quote_cache.cache import QuoteCache
 from app.repositories.analytics import AnalyticsRepository
 from app.repositories.market_data import MarketDataRepository
@@ -69,6 +73,28 @@ def build_adapters(settings: Settings, cache: QuoteCache) -> list[ExchangeAdapte
             )
         )
     return adapters
+
+
+_PAPER_TRADING_DEFAULT_FUNDING = Decimal("1000000")
+
+
+def build_paper_trading_engine(settings: Settings) -> tuple[PaperTradingEngine, BalanceManager]:
+    """Фаза 4: in-memory "гральні гроші" — щедро профінансовані баланси на
+    кожній увімкненій біржі, щоб симуляція працювала одразу без окремого
+    кроку налаштування (баланси можна скоригувати через
+    POST /api/paper-trading/balances для сценаріїв нестачі коштів)."""
+    balances = BalanceManager()
+    fees: dict[Exchange, Decimal] = {}
+    for exchange, cfg in settings.exchanges.items():
+        if not cfg.enabled:
+            continue
+        fees[exchange] = cfg.taker_fee
+        balances.set_balance(exchange, "USDT", _PAPER_TRADING_DEFAULT_FUNDING)
+        for symbol in settings.trading.symbols:
+            base_asset = symbol.split("-")[0]
+            balances.set_balance(exchange, base_asset, _PAPER_TRADING_DEFAULT_FUNDING)
+    engine = PaperTradingEngine(settings.paper_trading, balances, fees)
+    return engine, balances
 
 
 @dataclass
@@ -148,6 +174,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     analytics_repo = AnalyticsRepository(db.session_factory) if db is not None else None
     backtest_engine = BacktestEngine(db.session_factory, settings) if db is not None else None
 
+    # 6. Фаза 4: Paper Trading — повністю in-memory, не залежить від БД.
+    paper_trading_engine, paper_trading_balances = build_paper_trading_engine(settings)
+
     app.state.settings = settings
     app.state.clock_drift = drift
     app.state.quote_cache = cache
@@ -160,6 +189,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.retention_manager = retention
     app.state.analytics_repo = analytics_repo
     app.state.backtest_engine = backtest_engine
+    app.state.paper_trading_engine = paper_trading_engine
+    app.state.paper_trading_balances = paper_trading_balances
 
     for adapter in adapters:
         await adapter.connect()
@@ -201,3 +232,4 @@ app.include_router(health_router)
 app.include_router(ws_router)
 app.include_router(analytics_router)
 app.include_router(backtest_router)
+app.include_router(paper_trading_router)
