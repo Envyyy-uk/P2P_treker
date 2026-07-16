@@ -137,6 +137,14 @@ class AnalyticsConfig(BaseModel):
     default_page_size: int = Field(default=100, ge=1)
 
 
+class BacktestConfig(BaseModel):
+    """Historical Backtesting Engine (Фаза 3.1)."""
+
+    # Захист від невибагливого запиту на роки історії в один прогін —
+    # клієнту треба звузити період замість зависання процесу на годину.
+    max_ticks_per_run: int = Field(default=500_000, ge=1_000)
+
+
 class WebSocketConfig(BaseModel):
     """Параметри і біржових WS, і push на frontend."""
 
@@ -204,6 +212,7 @@ class Settings(BaseSettings):
     database: DatabaseConfig = Field(default_factory=DatabaseConfig)
     retention: RetentionConfig = Field(default_factory=RetentionConfig)
     analytics: AnalyticsConfig = Field(default_factory=AnalyticsConfig)
+    backtest: BacktestConfig = Field(default_factory=BacktestConfig)
     websocket: WebSocketConfig = Field(default_factory=WebSocketConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)

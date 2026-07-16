@@ -14,9 +14,11 @@ from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.api.routes.analytics import router as analytics_router
+from app.api.routes.backtest import router as backtest_router
 from app.api.routes.health import router as health_router
 from app.api.websocket.manager import ConnectionManager
 from app.api.websocket.routes import router as ws_router
+from app.backtesting.engine import BacktestEngine
 from app.core.config import Settings, get_settings
 from app.core.logging import setup_logging
 from app.core.time_sync import ClockDriftResult, check_clock_drift_on_startup
@@ -144,6 +146,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         )
 
     analytics_repo = AnalyticsRepository(db.session_factory) if db is not None else None
+    backtest_engine = BacktestEngine(db.session_factory, settings) if db is not None else None
 
     app.state.settings = settings
     app.state.clock_drift = drift
@@ -156,6 +159,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.history_recorder = recorder
     app.state.retention_manager = retention
     app.state.analytics_repo = analytics_repo
+    app.state.backtest_engine = backtest_engine
 
     for adapter in adapters:
         await adapter.connect()
@@ -196,3 +200,4 @@ app = FastAPI(title="Spread Monitor MVP", lifespan=lifespan)
 app.include_router(health_router)
 app.include_router(ws_router)
 app.include_router(analytics_router)
+app.include_router(backtest_router)
