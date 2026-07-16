@@ -4,7 +4,7 @@
 тільки Spot). На поточному етапі це **Spread Monitor**, а не торговий бот.
 
 Повний план розробки: [docs/PLAN.md](docs/PLAN.md).
-Статус фаз: [CLAUDE.md](CLAUDE.md). Виконано: Фази 0, 0.1, 0.2, 0.3, 1, 2, 2.1, 2.2, 3.
+Статус фаз: [CLAUDE.md](CLAUDE.md). Виконано: Фази 0, 0.1, 0.2, 0.3, 1, 2, 2.1, 2.2, 3, 3.1.
 
 ## Вимоги
 
@@ -97,6 +97,21 @@ GET /api/analytics/spread-events/export   CSV/JSON експорт
 
 Деталі, обмеження, знайдені під час перевірки нюанси —
 [docs/phase-3/README.md](docs/phase-3/README.md).
+
+## Historical Backtesting (Фаза 3.1)
+
+```bash
+curl -X POST localhost:8000/api/backtest/run -H "Content-Type: application/json" -d '{
+  "symbols": ["BTC-USDT"], "from": 1784246400000, "to": 1784246430000,
+  "spread_threshold": "0.002", "min_duration_ms": 500
+}'
+```
+
+Прогонює історію через ту саму логіку `SpreadEngine`/`SpreadEventTracker`,
+що й live; параметри (поріг, тривалість, комісії, обсяг) можна міняти
+заднім числом для експерименту. Результат — оптимістична оцінка (без
+VWAP/slippage/затримки виконання). Деталі —
+[docs/phase-3.1/README.md](docs/phase-3.1/README.md).
 
 ## Правила безпеки
 

@@ -14,7 +14,8 @@
 - [x] Фаза 2.1 — Retention і розмір БД (партиції, downsampling, метрики розміру)
 - [x] Фаза 2.2 — Backup і Disaster Recovery (pg_dump, тестове відновлення, RPO/RTO)
 - [x] Фаза 3 — Аналітика (API історії, threshold events, статистика, графіки, експорт)
-- [ ] Фаза 3.1+ — див. docs/PLAN.md
+- [x] Фаза 3.1 — Historical Backtesting Engine (replay через live Spread Engine, симульований PnL)
+- [ ] Фаза 4+ — див. docs/PLAN.md
 
 ## Наскрізні правила (короткий витяг з PLAN.md)
 
