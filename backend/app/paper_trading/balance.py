@@ -63,6 +63,16 @@ class BalanceManager:
         balance = self.get(exchange, asset)
         balance.total += amount
 
+    def debit(self, exchange: Exchange, asset: str, amount: Decimal) -> bool:
+        """Списує кошти без попереднього резервування (напр. вихідна нога
+        ручного переказу між біржами, Фаза 4.1). False, якщо available <
+        amount — баланс лишається незмінним у цьому разі."""
+        balance = self.get(exchange, asset)
+        if balance.available < amount:
+            return False
+        balance.total -= amount
+        return True
+
     def all_balances(self) -> dict[tuple[Exchange, str], AssetBalance]:
         """Знімок усіх балансів — для health/дебаг-ендпоінтів."""
         return dict(self._balances)

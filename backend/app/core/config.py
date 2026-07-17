@@ -185,6 +185,35 @@ class PaperTradingConfig(BaseModel):
         return self.symbol_rules.get(symbol, self.default_rules)
 
 
+class CapitalConfig(BaseModel):
+    """Модель капіталу (Фаза 4.1): капітал заздалегідь розподілений між
+    біржами, купівля/продаж виконуються за рахунок уже наявних балансів
+    (без withdraw під кожну угоду) — сама ця гарантія забезпечується
+    `BalanceManager` (Фаза 4); тут лише target allocation і сигнал
+    ребалансування поверх нього.
+
+    `target_allocation` — частки капіталу (у %, 0–100) на біржу, мають
+    сумувати рівно до 100, якщо задані. Порожній dict = ціль не
+    налаштована: снепшот балансу все одно показує фактичний розподіл,
+    сигнали ребалансування просто не генеруються.
+    """
+
+    quote_asset: str = "USDT"
+    target_allocation: dict[Exchange, Decimal] = Field(default_factory=dict)
+    # Відхилення фактичного розподілу від цільового (в % капіталу), що
+    # вважається достатнім для сигналу "потрібне ребалансування".
+    rebalance_threshold_pct: Decimal = Field(default=Decimal("10"), gt=0)
+
+    @field_validator("target_allocation")
+    @classmethod
+    def _validate_allocation_sums_to_100(
+        cls, v: dict[Exchange, Decimal]
+    ) -> dict[Exchange, Decimal]:
+        if v and abs(sum(v.values()) - Decimal("100")) > Decimal("0.01"):
+            raise ValueError(f"target_allocation must sum to 100 (got {sum(v.values())})")
+        return v
+
+
 class WebSocketConfig(BaseModel):
     """Параметри і біржових WS, і push на frontend."""
 
@@ -254,6 +283,7 @@ class Settings(BaseSettings):
     analytics: AnalyticsConfig = Field(default_factory=AnalyticsConfig)
     backtest: BacktestConfig = Field(default_factory=BacktestConfig)
     paper_trading: PaperTradingConfig = Field(default_factory=PaperTradingConfig)
+    capital: CapitalConfig = Field(default_factory=CapitalConfig)
     websocket: WebSocketConfig = Field(default_factory=WebSocketConfig)
     logging: LoggingConfig = Field(default_factory=LoggingConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)

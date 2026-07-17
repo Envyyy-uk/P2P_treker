@@ -68,6 +68,31 @@ def test_credit_increases_total():
     assert manager.available(Exchange.BINANCE, "BTC") == D("0.5")
 
 
+def test_debit_reduces_total_when_sufficient():
+    manager = BalanceManager()
+    manager.set_balance(Exchange.BINANCE, "USDT", D("1000"))
+    ok = manager.debit(Exchange.BINANCE, "USDT", D("300"))
+    assert ok
+    assert manager.available(Exchange.BINANCE, "USDT") == D("700")
+
+
+def test_debit_fails_when_insufficient_and_does_not_mutate():
+    manager = BalanceManager()
+    manager.set_balance(Exchange.BINANCE, "USDT", D("100"))
+    ok = manager.debit(Exchange.BINANCE, "USDT", D("300"))
+    assert not ok
+    assert manager.available(Exchange.BINANCE, "USDT") == D("100")
+
+
+def test_debit_respects_locked_funds():
+    manager = BalanceManager()
+    manager.set_balance(Exchange.BINANCE, "USDT", D("1000"))
+    manager.reserve(Exchange.BINANCE, "USDT", D("900"))  # only 100 available
+    ok = manager.debit(Exchange.BINANCE, "USDT", D("300"))
+    assert not ok
+    assert manager.get(Exchange.BINANCE, "USDT").total == D("1000")
+
+
 def test_balances_isolated_per_exchange_and_asset():
     manager = BalanceManager()
     manager.set_balance(Exchange.BINANCE, "USDT", D("100"))
