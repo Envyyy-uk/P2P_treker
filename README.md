@@ -4,7 +4,7 @@
 тільки Spot). На поточному етапі це **Spread Monitor**, а не торговий бот.
 
 Повний план розробки: [docs/PLAN.md](docs/PLAN.md).
-Статус фаз: [CLAUDE.md](CLAUDE.md). Виконано: Фази 0, 0.1, 0.2, 0.3, 1, 2, 2.1, 2.2, 3, 3.1, 4.
+Статус фаз: [CLAUDE.md](CLAUDE.md). Виконано: Фази 0, 0.1, 0.2, 0.3, 1, 2, 2.1, 2.2, 3, 3.1, 4, 4.1.
 
 ## Вимоги
 
@@ -139,6 +139,22 @@ locked), rate limit, часткові виконання, timeout, cancellation.
 помилки, ніколи на 4xx) і ідемпотентністю за `client_order_id`. Деталі,
 що свідомо не реалізовано (live WS depth-адаптери) і чому —
 [docs/phase-4/README.md](docs/phase-4/README.md).
+
+## Модель капіталу (Фаза 4.1)
+
+```bash
+curl localhost:8000/api/capital/status
+curl localhost:8000/api/capital/rebalance-signals
+curl -X POST localhost:8000/api/capital/transfer -H "Content-Type: application/json" \
+  -d '{"asset": "USDT", "from_exchange": "bybit", "to_exchange": "binance", "amount": "500"}'
+```
+
+Моніторинг балансу (base/quote, available/locked) по біржах поверх того
+самого `BalanceManager`, що й Paper Trading; target allocation і сигнал
+ребалансування (`CAPITAL__TARGET_ALLOCATION`); ребалансування лише
+ручне — `POST /transfer` тільки фіксує в обліку переказ, який оператор
+уже виконав на реальних біржах, жодного автоматичного переказу коштів.
+Деталі — [docs/phase-4.1/README.md](docs/phase-4.1/README.md).
 
 ## Правила безпеки
 

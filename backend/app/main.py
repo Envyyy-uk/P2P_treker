@@ -16,11 +16,13 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.api.routes.analytics import router as analytics_router
 from app.api.routes.backtest import router as backtest_router
+from app.api.routes.capital import router as capital_router
 from app.api.routes.health import router as health_router
 from app.api.routes.paper_trading import router as paper_trading_router
 from app.api.websocket.manager import ConnectionManager
 from app.api.websocket.routes import router as ws_router
 from app.backtesting.engine import BacktestEngine
+from app.capital.monitor import CapitalMonitor
 from app.core.config import Settings, get_settings
 from app.core.logging import setup_logging
 from app.core.time_sync import ClockDriftResult, check_clock_drift_on_startup
@@ -95,6 +97,12 @@ def build_paper_trading_engine(settings: Settings) -> tuple[PaperTradingEngine, 
             balances.set_balance(exchange, base_asset, _PAPER_TRADING_DEFAULT_FUNDING)
     engine = PaperTradingEngine(settings.paper_trading, balances, fees)
     return engine, balances
+
+
+def build_capital_monitor(settings: Settings, balances: BalanceManager) -> CapitalMonitor:
+    """Фаза 4.1: моніторинг капіталу поверх того самого `BalanceManager`,
+    що й Paper Trading Engine — той самий баланс, дві точки зору на нього."""
+    return CapitalMonitor(balances, settings.capital)
 
 
 @dataclass
@@ -177,6 +185,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # 6. Фаза 4: Paper Trading — повністю in-memory, не залежить від БД.
     paper_trading_engine, paper_trading_balances = build_paper_trading_engine(settings)
 
+    # 7. Фаза 4.1: Capital Model — той самий BalanceManager, що й Paper Trading.
+    capital_monitor = build_capital_monitor(settings, paper_trading_balances)
+
     app.state.settings = settings
     app.state.clock_drift = drift
     app.state.quote_cache = cache
@@ -191,6 +202,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.backtest_engine = backtest_engine
     app.state.paper_trading_engine = paper_trading_engine
     app.state.paper_trading_balances = paper_trading_balances
+    app.state.capital_monitor = capital_monitor
 
     for adapter in adapters:
         await adapter.connect()
@@ -233,3 +245,4 @@ app.include_router(ws_router)
 app.include_router(analytics_router)
 app.include_router(backtest_router)
 app.include_router(paper_trading_router)
+app.include_router(capital_router)
