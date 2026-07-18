@@ -1,0 +1,24 @@
+# Приклад конфігурації Caddy для VPS без Docker: автоматичний HTTPS
+# (Let's Encrypt) + reverse proxy на backend + статика frontend.
+# Замінити your-domain.example на реальний домен, що вказує на IP цього VPS.
+
+your-domain.example {
+    # Статика frontend (результат `npm run build` -> dist/).
+    root * /opt/spread-monitor/frontend/dist
+    file_server
+    try_files {path} /index.html
+
+    # Backend API + health — той самий origin, тому PWA/Safari не має
+    # проблем з CORS чи змішаним http/https контентом.
+    handle /api/* {
+        reverse_proxy 127.0.0.1:8000
+    }
+    handle /health {
+        reverse_proxy 127.0.0.1:8000
+    }
+    # WebSocket (live push котирувань/спреду) — Caddy сам проксіює
+    # Upgrade/Connection заголовки, окремого налаштування не потрібно.
+    handle /ws* {
+        reverse_proxy 127.0.0.1:8000
+    }
+}
