@@ -33,6 +33,15 @@ uv run uvicorn app.main:app --workers 1
 
 Перевірка: `curl localhost:8000/health`
 
+### Постійне розгортання (VPS, без Docker) + PWA на iPhone
+
+Якщо потрібен доступ 24/7 з телефону, а не лише локальний запуск:
+[docs/operations/vps-deploy-no-docker.md](docs/operations/vps-deploy-no-docker.md)
+— нативний PostgreSQL + systemd + Caddy (автоматичний HTTPS) на звичайному
+VPS, без Docker. Frontend дашборд — встановлювана PWA
+([frontend/README.md](frontend/README.md#pwa-додати-на-екран-домівки-на-iphone)):
+на iPhone відкрити сайт у Safari → "Поділитися" → "На екран Домівки".
+
 ## Тестування
 
 ```bash

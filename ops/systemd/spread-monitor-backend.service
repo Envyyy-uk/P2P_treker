@@ -1,0 +1,21 @@
+[Unit]
+Description=Spread Monitor MVP backend (FastAPI, workers=1)
+After=network.target postgresql.service
+Wants=postgresql.service
+
+[Service]
+Type=simple
+User=spread-monitor
+Group=spread-monitor
+WorkingDirectory=/opt/spread-monitor/backend
+EnvironmentFile=/opt/spread-monitor/backend/.env
+# uv sync встановлює .venv у WorkingDirectory — викликаємо звідти напряму,
+# без потреби активувати shell-оточення в systemd unit.
+ExecStart=/opt/spread-monitor/backend/.venv/bin/uvicorn app.main:app --workers 1 --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+# MVP: строго один worker (план, Фаза 1, п.4) — quote cache і Paper Trading
+# живуть у пам'яті процесу, systemd тут лише тримає ЙОГО живим, не масштабує.
+
+[Install]
+WantedBy=multi-user.target
